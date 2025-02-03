@@ -22,6 +22,8 @@ def main():
     games, filtered_count, total_count = parser.parse_file(pgn_file)
     print(f"Parties filtrées : {filtered_count}/{total_count}")
 
+    open('chess_data/filtered_games.pgn', 'w').write('\n\n'.join(str(game) for game in games))
+
     # Création des datasets
     train_dataset, test_dataset = create_datasets(games, tokenizer, max_length)
     print(f"Dataset d'entraînement : {len(train_dataset)} parties")
