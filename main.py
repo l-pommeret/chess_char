@@ -5,7 +5,7 @@ from dataset import create_datasets
 
 def main():
     # Configuration
-    url = "https://database.lichess.org/standard/lichess_db_standard_rated_2016-09.pgn.zst"
+    url = "https://database.lichess.org/standard/lichess_db_standard_rated_2012-09.pgn.zst"
     save_dir = "chess_data"
     max_length = 1024
 
