@@ -1,4 +1,5 @@
 import os
+import torch
 from model import ChessGPT
 from trainer import ChessTrainer
 from config import ModelConfig, TrainingConfig, GenerationConfig
@@ -10,7 +11,7 @@ from parser import PGNParser
 def main():
     # Chargement des données (supposons que train_dataset, test_dataset et tokenizer sont déjà créés)
     
-    url = "https://database.lichess.org/standard/lichess_db_standard_rated_2016-09.pgn.zst"
+    url = "https://database.lichess.org/standard/lichess_db_standard_rated_2013-09.pgn.zst"
     save_dir = "chess_data"
     max_length = 1024
 
@@ -42,6 +43,12 @@ def main():
     
     # Sauvegarde du tokenizer
     chess_gpt.save_tokenizer(os.path.join(training_config.output_dir, "tokenizer"))
+    
+    # Vérification de la disponibilité du GPU
+    if torch.cuda.is_available():
+        print("GPU CUDA détecté et sera utilisé pour l'entraînement")
+    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        print("GPU MPS Apple Silicon détecté et sera utilisé pour l'entraînement")
 
     # Configuration et lancement de l'entraînement
     trainer = ChessTrainer(

@@ -6,9 +6,9 @@ class ModelConfig:
     vocab_size: int
     n_positions: int = 1024
     n_ctx: int = 1024
-    n_embd: int = 512
-    n_layer: int = 8
-    n_head: int = 8
+    n_embd: int = 64
+    n_layer: int = 2
+    n_head: int = 2
 
 @dataclass
 class TrainingConfig:
