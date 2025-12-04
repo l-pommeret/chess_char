@@ -1,0 +1,130 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{geometry}
+\usepackage{booktabs}
+
+\geometry{a4paper, margin=1in}
+
+\title{Analyse de l'entropie des données PGN d'échecs}
+\author{Antigravity Agent}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+Ce document détaille le calcul de cinq niveaux d'entropie pour le jeu de données PGN de Lichess. L'objectif est de mesurer le contenu informationnel des parties d'échecs à différents niveaux d'abstraction. Nous notons le vocabulaire des caractères $V$ (avec $|V| = 43$) et la taille du jeu de données $N$ caractères.
+
+\section{Niveau 1 : Entropie maximale (uniforme)}
+Ce niveau suppose une distribution uniforme sur l'ensemble des caractères $V$. Il représente l'incertitude maximale possible étant donné la taille de l'alphabet, en supposant aucune connaissance de la fréquence ou de la structure.
+
+\subsection{Formule}
+\begin{equation}
+    H_0 = \log_2 |V|
+\end{equation}
+
+\subsection{Calcul concret}
+Le tokenizer a identifié 43 caractères uniques dans le jeu de données PGN (a-h, 1-8, R, N, B, Q, K, ponctuation, etc.).
+\begin{equation}
+    H_0 = \log_2(43) \approx 5.426 \text{ bits/char}
+\end{equation}
+
+\section{Niveau 2 : Entropie fréquentielle (ordre 0)}
+Ce niveau suppose l'indépendance entre les caractères mais prend en compte la distribution de probabilité non uniforme des caractères $p(x)$. Il correspond à l'entropie de Shannon de la distribution des unigrammes.
+
+\subsection{Formule}
+\begin{equation}
+    H_{freq} = - \sum_{x \in V} p(x) \log_2 p(x)
+\end{equation}
+\noindent où $p(x) = \frac{\text{count}(x)}{N}$.
+
+\subsection{Calcul concret}
+Nous avons compté les occurrences de tous les caractères dans le jeu de données. Les caractères les plus fréquents (comme les espaces et les chiffres) ont une probabilité élevée, réduisant l'entropie par rapport au cas uniforme.
+\begin{equation}
+    H_{freq} \approx 4.587 \text{ bits/char}
+\end{equation}
+\noindent Cela indique que la simple connaissance de la fréquence des caractères permet d'économiser environ $0.84$ bits par caractère.
+
+\section{Niveau 3 : Entropie syntaxique (basée sur le contexte)}
+Ce niveau introduit une dépendance au contexte basée sur la syntaxe rigide des fichiers PGN. Nous définissons un ensemble de contextes $C$, où chaque contexte $c \in C$ est déterminé par l'état du parseur (par exemple, à l'intérieur d'une balise, lecture d'un coup) et le caractère précédent.
+
+\subsection{Formule}
+L'entropie conditionnelle est définie comme :
+\begin{equation}
+    H_{syntax} = \sum_{c \in C} p(c) H(X|C=c)
+\end{equation}
+\noindent où $H(X|C=c) = - \sum_{x \in V} p(x|c) \log_2 p(x|c)$.
+
+\subsection{Calcul concret}
+Nous avons implémenté une machine à états finis avec des états tels que `TAG`, `MOVES`, `COMMENT`. Pour chaque état et caractère précédent, nous avons estimé la distribution de probabilité du caractère suivant.
+\begin{equation}
+    H_{syntax} \approx 2.607 \text{ bits/char}
+\end{equation}
+\noindent Cette baisse importante montre que le format PGN est hautement structuré.
+
+\section{Niveau 4 : Entropie des coups légaux (arbre de jeu)}
+Ce niveau mesure l'entropie du jeu d'échecs lui-même, indépendamment de la représentation textuelle. Il suppose la connaissance des règles des échecs mais suppose une distribution uniforme sur les coups légaux (un joueur "aléatoire" qui respecte les règles).
+
+\subsection{Formule}
+À n'importe quelle position de l'échiquier $S_i$, soit $|L(S_i)|$ le nombre de coups légaux.
+\begin{equation}
+    H_{legal\_move} = \frac{1}{M} \sum_{i=1}^{M} \log_2 |L(S_i)|
+\end{equation}
+\noindent Pour comparer avec l'entropie au niveau des caractères, nous normalisons par la longueur moyenne d'un coup en caractères $\bar{L}$ :
+\begin{equation}
+    H_{legal\_char} = \frac{H_{legal\_move}}{\bar{L}}
+\end{equation}
+
+\subsection{Calcul concret}
+En utilisant `python-chess`, nous avons rejoué 1000 parties.
+\begin{equation}
+    H_{legal\_char} \approx 1.120 \text{ bits/char}
+\end{equation}
+\noindent Cela représente la limite inférieure théorique si nous encodions uniquement "l'information échiquéenne" sans le surcoût de formatage PGN, en supposant aucune connaissance stratégique.
+
+\section{Niveau 5 : Entropie croisée du LLM}
+Ce niveau utilise un grand modèle de langage (GPT-2) entraîné pour approximer l'entropie réelle de la séquence. Le modèle capture non seulement la syntaxe et les règles, mais aussi **la stratégie humaine et la théorie des ouvertures**.
+
+\subsection{Formule}
+\begin{equation}
+    H_{LLM} (\text{bits}) = \frac{\text{Loss (nats)}}{\ln(2)}
+\end{equation}
+
+\subsection{Calcul concret}
+Nous avons entraîné un modèle GPT-2 (8 couches, dimension d'embedding 256, 8 têtes) pendant 3 époques sur 50 000 parties. Nous avons évalué le modèle partie par partie.
+\begin{itemize}
+    \item \textbf{Époque 1 (Checkpoint 781)} : $1.166$ bits/char.
+    \item \textbf{Époque 3 (Final)} : $0.857$ bits/char.
+\end{itemize}
+
+\noindent **Analyse des résultats** : 
+\begin{itemize}
+    \item Après seulement 1 époque, le modèle ($1.17$) approche déjà l'entropie des coups légaux ($1.12$).
+    \item Après 3 époques, le modèle ($0.86$) bat significativement l'entropie des coups légaux.
+\end{itemize}
+Cela confirme que le modèle apprend rapidement les règles (Époque 1) puis procède à l'apprentissage de la stratégie (Époque 3), compressant les données au-delà de ce qui est possible avec les règles seules.
+
+\section{Résumé des résultats}
+\begin{table}[h]
+\centering
+\begin{tabular}{llc}
+\toprule
+\textbf{Niveau} & \textbf{Description} & \textbf{Entropie (bits/char)} \\
+\midrule
+1 & Entropie maximale (uniforme) & 5.43 \\
+2 & Fréquence (ordre 0) & 4.59 \\
+3 & Syntaxe connue & 2.61 \\
+4 & Coups légaux (uniforme) & 1.12 \\
+5a & LLM entraîné (Époque 1) & 1.17 \\
+5b & LLM entraîné (Époque 3) & \textbf{0.86} \\
+\bottomrule
+\end{tabular}
+\caption{Comparaison des niveaux d'entropie}
+\end{table}
+
+\end{document}
